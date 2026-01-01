@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+env/
+!env/.gitkeep
+.venv/
+venv/
+
+# Environment variables
+*.env
+
+# VSCode / PyCharm
+.vscode/
+.idea/
+
+# Byte-compiled / log files
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Cache / build
+*.egg-info/
+dist/
+build/
+
+# Data
+data/*
+!data/.gitkeep
