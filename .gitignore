@@ -12,6 +12,8 @@ venv/
 
 # Environment variables
 *.env
+env/*
+!env/.gitkeep
 
 # VSCode / PyCharm
 .vscode/

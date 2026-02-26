@@ -1,6 +1,9 @@
+# in this version price api dont work
+
 from telethon import TelegramClient, events, Button
 from openpyxl import Workbook, load_workbook
 from khayyam import JalaliDatetime
+import aiohttp
 import asyncio
 import uuid
 import os
@@ -26,6 +29,9 @@ with open("./env/admin.txt", "r", encoding="utf-8-sig") as admin_chat_id:
 with open("./data/answerd_questions.txt", "r", encoding="utf-8-sig") as asqe:
     answerd_qestion_list = asqe.read().split(",") # read answeard question after start
 
+with open("./env/api_key.txt", "r", encoding="utf-8-sig") as api_key:
+    api_key = api_key.read().strip()
+
 # set answeard questions
 question_key = {}
 answerd_qestion = set()
@@ -33,7 +39,7 @@ for messages_key in answerd_qestion_list:
     answerd_qestion.add(messages_key)
     question_key[messages_key] = "0"
 print("answeard questions loaded")
-
+    
 
 # load excel file in set dir
 user_data = set() # chat ids set var
@@ -56,12 +62,51 @@ if not os.path.exists(FILE) :
     wb.close()
 
 
+# cheng price format 
+def format_price(price: int) -> str:
+    return f"{price: ,}".replace(",", ".")
+    
+
 # return date time
 def date_ret():
     now = JalaliDatetime.now()
     time = now.strftime("%Y/%m/%d - %H:%M:%S")
     return time
 
+
+# get prices 
+api_url = "https://brsapi.ir/Api/Market/Gold_Currency.php"
+params_ = {"key": api_key}
+
+headers_ = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "application/json",
+    "Referer": "https://brsapi.ir/"
+}
+
+server_error = True
+
+async def get_api(u, p, h):
+    global server_error
+    async with aiohttp.ClientSession(headers=h) as session:
+        while True:
+            try:
+                async with session.get(u, params=p) as res:
+                    if res.status == 200:
+                        data = await res.json()
+                        print("data updated")
+                    else:
+                        text = await res.text()
+                        print("bad status:", res.status, "|", text[:200])
+
+            except aiohttp.ClientConnectorError as e:
+                print("Connection error:", e)
+                server_error = True
+            except Exception as e:
+                print("API error:", e)
+                server_error = True
+
+            await asyncio.sleep(3600)  # ever 1 houer
 
 # get chat id from excel file into set var
 wb =  load_workbook(FILE)
@@ -97,17 +142,19 @@ client = TelegramClient(
 
 # main func
 async def main(token, app, admin_id, date):
-    # start app
+     # start app
     await app.start(bot_token= token)
-    
+       
     # send start data to admin
     for i in admin_id:
         await app.send_message(int(i), f"bot started in {date} succses")
     
+    # update prices
+    asyncio.create_task(get_api(api_url, params_, headers_))
+
     # keeping run the bot
     await app.run_until_disconnected()
     
-
 # start message
 @client.on(events.NewMessage(pattern= r"/start"))
 async def start(event):
@@ -122,10 +169,27 @@ async def start(event):
     add_data(user_data, FILE, data)
     print(f"start request from : {data['chat_id']}")
     
-    await client.send_message(entity= event.chat_id, message= f"سلام {data['first_name']} عزیز، \n به ربات خدمات کامپیوتری سپهر خوش آمدید \n برای مشاهده خدمات از دستور /services استفاده کنید.")
+    # set services keyboared button
+    global keyBoard_services_button
+    keyBoard_services_button = client.build_reply_markup([
+        [
+            Button.text("❓ پرسش سؤال", resize=True),
+            Button.text("🏪 لیست خدمات حضوری", resize=True)
+        ],
+        
+        [
+            Button.text("🧰 سامانه‌های کاربردی", resize=True),
+            Button.text("💰 قیمت لحظه‌ای طلا و ارزها", resize=True),
+        ], # sort buttons two by two
+        
+        [Button.text("تمامی خدمات 🛠️", resize=True)],
+        [Button.text("پنل ادمین 👨🏻‍💻", resize=True) if str(event.chat_id) in admins else Button.clear()] # set this button when requester is admin
+    ])
+    
+    await client.send_message(entity= event.chat_id, message= f"سلام {data['first_name']} عزیز، \n به ربات خدمات کامپیوتری سپهر خوش آمدید \n برای مشاهده خدمات از دستور /services استفاده کنید.", buttons= keyBoard_services_button)
 
 # admin panel
-@ client.on(events.NewMessage(pattern=r"/admin"))
+@ client.on(events.NewMessage(pattern=r"^(/admin|پنل ادمین 👨🏻‍💻)$"))
 async def adminPanel(event):
     # set buttom
     butt = client.build_reply_markup([
@@ -135,7 +199,6 @@ async def adminPanel(event):
         [Button.inline("❌ حذف ادمین", data="remove_admin")],
         [Button.inline("💬 پاسخ به سوالات کاربران", data="reply_users")]
     ])
-
 
     if str(event.chat_id) in admins:
         print(f"Confirmed admin login with chat ID: {event.chat_id} detected")
@@ -160,33 +223,48 @@ async def adminPanel(event):
 
 
 # send servises
-@client.on(events.NewMessage(pattern= r"/services"))
+@client.on(events.NewMessage(pattern= r"(/services|تمامی خدمات 🛠️)$"))
 async def services(event):
     print(f"services reqest from : {event.chat_id}")
     
     # set butons
     butt = client.build_reply_markup([
-        Button.inline("اخبار", data="news"),
-        Button.url("اینستاگرام", "https://www.instagram.com/sepehr_._electronic/"),
-        Button.url("ایرانخودرو", "https://ikcosales.ir/"),
-        Button.inline("پرسش", data="ask")
+        [Button.inline("🧰 سامانه‌های کاربردی", data="usefull_sites"),
+         Button.url("📸 اینستاگرام ما", "https://www.instagram.com/sepehr_._electronic/")],
+
+        [Button.url("🚗 ثبت‌نام ایران‌خودرو", "https://ikcosales.ir/"),
+         Button.inline("🏪 لیست خدمات حضوری", data="services_list")],
+
+        [Button.inline("❓ پرسش سؤال", data="ask"),
+         Button.inline("💰 قیمت لحظه‌ای طلا و ارزها", data="price")]
     ])
-    
+
+
     # set text for view
     text = """
-    📌 سرویس‌های ربات شامل موارد زیر است:
+    📌 <b>خدمات ربات سپهر الکترونیک</b>
 
-    📰 برای مشاهده اخبار جهان، گزینه «اخبار» را انتخاب کنید.
+    🧰 <b>سامانه‌های کاربردی</b>
+    مجموعه‌ای از لینک‌ها و ابزارهای آنلاین پرکاربرد
 
-    🚗 برای ورود به سایت اولویت‌بندی محصولات ایران‌خودرو، گزینه «ایران‌خودرو» را انتخاب کنید.
+    🚗 <b>ثبت‌نام ایران‌خودرو</b>
+    ورود مستقیم به سامانه فروش
 
-    ❓ برای طرح سؤال و ارتباط مستقیم با شعبه حضوری، گزینه «پرسش» را انتخاب کنید.
+    🏪 <b>لیست خدمات حضوری</b>
+    مشاهده خدمات و تعمیرات
 
-    📷 برای انتقال به صفحه اینستاگرام سپهر الکترونیک، از گزینه «اینستاگرام» استفاده کنید.
+    ❓ <b>پرسش سؤال</b>
+    ارتباط مستقیم با پشتیبانی
+
+    💰 <b>قیمت لحظه‌ای طلا و رمزارزها</b>
+    بررسی قیمت‌های روز بازار
+
+    📸 <b>اینستاگرام ما</b>
+    نمونه‌کارها و اطلاعیه‌ها
     """
 
     # send message
-    await client.send_message(entity=event.chat_id, message=text, buttons=butt)
+    await client.send_message(entity=event.chat_id, message=text, buttons= butt, parse_mode= "html")
  
  
 # send message to all 
@@ -256,6 +334,7 @@ async def add_admin(event):
                     admins.append(new_admin)
                     print(f"admin {event.chat_id} added {new_admin} to admins")
                     await client.send_message(int(new_admin), message="شما به ادمین ارتقاع یافتید\n برای مشاهده دسترسی های خود از دستور /admin استفاده کنید")
+                    await client.send_message(int(new_admin), message= "برای بازدهی بهتر ربات،‌ توصیه میشه یه بار مجدد ربات رو /start بکنید!!")
                     await client.send_message(event.chat_id, message= "ادمین جدید اضافه شد", buttons=None)
                     return
     else:
@@ -330,6 +409,7 @@ async def remove_admin(event):
 
 # get question and send to admins
 @client.on(events.CallbackQuery(data="ask"))
+@client.on(events.NewMessage(pattern="❓ پرسش سؤال"))
 async def send_to_admin(event):
 
     print(f"user {event.chat_id} want ask a question")
@@ -444,6 +524,146 @@ async def reply_to_user_ask(event):
         return
     else: 
         return
+
+
+# price of gold and digital market
+@client.on(events.CallbackQuery(data="price"))
+@client.on(events.NewMessage(pattern="💰 قیمت لحظه‌ای طلا و ارزها"))
+async def prise(event):
+    butt = client.build_reply_markup([
+        Button.inline("طلا", data = "gold"),
+        Button.inline("ارز های دیجیتال", data = "market"),
+        Button.inline("دلار و ارز های دیگر", data = "real")
+    ])
+
+    
+    # send message to user
+    await client.send_message(
+        entity=event.chat_id, 
+        message= """
+            📊 جهت مشاهده قیمت‌ها، یکی از گزینه‌های زیر را انتخاب نمایید:
+            🟡 طلا
+            🪙 ارزهای دیجیتال
+            💲 دلار و ارز های دیگر
+            """, 
+            buttons= butt)
+
+# gold price 
+@client.on(events.CallbackQuery(data="gold"))
+async def gold_price(event):
+    print(f"user {event.chat_id} requested for gold price")
+    # check server
+    if server_error == False :
+        pass # the web service server is has error in connection so this parts (gold - market - real) dont work on this version
+    
+    else :
+        # send error to user
+        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️")
+        return
+
+# market prie 
+@client.on(events.CallbackQuery(data="market"))
+async def gold_price(event):
+    print(f"user {event.chat_id} requested for market price")
+    # check server
+    if server_error == False :
+        pass # the web service server is has error in connection so this parts (gold - market - real) dont work on this version
+    
+    else :
+        # send error to user
+        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️")
+        return
+
+@client.on(events.CallbackQuery(data="real"))
+async def gold_price(event):
+    print(f"user {event.chat_id} requested for real price")
+    # check server
+    if server_error == False :
+        pass # the web service server is has error in connection so this parts (gold - market - real) dont work on this version
+    
+    else :
+        # send error to user
+        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️")
+        return
+
+
+# send usefull websites adress
+@client.on(events.CallbackQuery(data= "usefull_sites"))
+@client.on(events.NewMessage(pattern="🧰 سامانه‌های کاربردی"))
+async def usefull_sites(event):
+    await client.send_file(entity= event.chat_id, file= "./data/usefull_sites.pdf")
+    await client.send_message(entity= event.chat_id, message= "نکته : اکثر لینک های داخل لیس قابلیت انتقال مستقیم به سامانه دارن،فقط کافیه روشون کلیک کنید!")
+    print(f"user {event.chat_id} get the usefull sites")
+    return
+
+
+# send services 
+@client.on(events.CallbackQuery(data = "services_list"))
+@client.on(events.NewMessage(pattern="🏪 لیست خدمات حضوری"))
+async def services_in(event):
+    text = """
+        📌 لیست خدمات کافی‌نت و خدمات کامپیوتری سپهر
+
+        🖥 خدمات کامپیوتری و نرم‌افزاری
+        • نصب ویندوز (7 / 10 / 11)
+        • نصب لینوکس (Ubuntu / Debian / Arch)
+        • نصب درایور و نرم‌افزارهای عمومی و تخصصی
+        • نصب آنتی‌ویروس و تأمین امنیت سیستم
+        • پارتیشن‌بندی و فرمت هارد
+        • رفع کندی سیستم و بهینه‌سازی
+        • ویروس‌یابی و پاکسازی کامل
+        • رفع مشکل بوت و بالا نیامدن ویندوز
+        • ریکاوری اطلاعات
+        • بازیابی فایل‌های حذف‌شده
+        • بکاپ‌گیری و انتقال اطلاعات
+        • ریست پسورد ویندوز
+        • ارتقاء سیستم و نصب SSD
+
+        🌐 خدمات اینترنتی و سامانه‌های دولتی
+        • ثبت‌نام دانشگاه، مدارس و آزمون‌ها
+        • ثبت‌نام خودرو و موتور
+        • خدمات ثنا، سجام، سهام عدالت
+        • ثبت‌نام یارانه و کارت سوخت
+        • پرداخت قبوض و جریمه
+        • دریافت فیش حقوقی و گواهی‌ها
+        • احراز هویت آنلاین
+
+        🖨 خدمات چاپ و تکثیر
+        • پرینت سیاه‌وسفید و رنگی (A4 / A5 / A3)
+        • چاپ پشت و رو
+        • کپی سیاه‌وسفید و رنگی
+        • اسکن مدارک
+        • پرینت عکس
+        • تایپ فارسی و انگلیسی
+
+        📝 امور اداری و حقوقی
+        • تنظیم و ثبت دادخواست
+        • ثبت شرکت و تغییرات
+        • اظهارنامه مالیاتی
+        • نقل و انتقال خودرو
+        • خدمات بیمه تأمین اجتماعی
+
+        💾 خدمات فایل و حافظه
+        • رایت CD / DVD
+        • انتقال اطلاعات فلش و هارد
+        • فرمت و تعمیر فلش
+        • تبدیل و کم‌حجم‌سازی فایل‌ها
+
+        📱 خدمات موبایل
+        • نصب نرم‌افزار
+        • انتقال اطلاعات گوشی
+        • ساخت جیمیل
+        • رفع مشکلات نرم‌افزاری اندروید
+
+        🎯 خدمات ویژه
+        • نصب کامل سیستم (پکیج ویندوز + درایور + آفیس + آنتی‌ویروس + بهینه‌سازی)
+        • راه‌اندازی شبکه کوچک
+        • تنظیم مودم و اینترنت
+        • طراحی رزومه حرفه‌ای
+        • مشاوره خرید سیستم
+    """
+    await client.send_message(event.chat_id, message= text)
+    return
 
 
 # start bot    
