@@ -34,3 +34,4 @@ build/
 # Data
 data/*
 !data/.gitkeep
+!data/usefull_sites.pdf
