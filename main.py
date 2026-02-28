@@ -454,7 +454,7 @@ async def send_to_admin(event):
     ]
     for admin in admins:
         await client.send_message(int(admin), message= text, buttons= answer)
-    await client.send_message(event.chat_id, message= "پیام با موفقیت برای ادمین ها ارسال شد ✅")
+    await client.send_message(event.chat_id, message= "پیام با موفقیت برای ادمین ها ارسال شد ✅", buttons=keyBoard_services_button)
     print(f"user {event.chat_id} send question for admins")
     
 
