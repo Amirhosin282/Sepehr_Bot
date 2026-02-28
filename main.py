@@ -287,7 +287,7 @@ async def sendToAll(event):
             
             # cancel buttone
             if response == "❌ لغو":
-                await client.send_message(event.chat_id, message= "عملیات با موفقیت لغو شد \n برای بازگشت به پنل ادمین از دستور /admin استفاده کنید.", buttons=None)
+                await client.send_message(event.chat_id, message= "عملیات با موفقیت لغو شد \n برای بازگشت به پنل ادمین از دستور /admin استفاده کنید.", buttons=keyBoard_services_button)
                 return
             
             # send message to all ids in user_data set var
@@ -315,17 +315,17 @@ async def add_admin(event):
 
                 # cancle
                 if new_admin == "❌ لغو":
-                    await client.send_message(event.chat_id, message= "عملیات با موفقیت لغو شد \n برای بازگشت به پنل ادمین از دستور /admin استفاده کنید.", buttons=None)
+                    await client.send_message(event.chat_id, message= "عملیات با موفقیت لغو شد \n برای بازگشت به پنل ادمین از دستور /admin استفاده کنید.", buttons=keyBoard_services_button)
                     return
 
                 # checing admin
                 if new_admin in admins:
-                    await client.send_message(event.chat_id, "⚠️ این کاربر از قبل ادمین است", buttons=None)
+                    await client.send_message(event.chat_id, "⚠️ این کاربر از قبل ادمین است", buttons=keyBoard_services_button)
                     return
 
                 # check inital message
                 if not new_admin.isdigit():
-                    await client.send_message(event.chat_id, "❌ آیدی باید عددی باشد", buttons=None)
+                    await client.send_message(event.chat_id, "❌ آیدی باید عددی باشد", buttons=keyBoard_services_button)
                     return
 
                 else: # add to admins
@@ -334,8 +334,8 @@ async def add_admin(event):
                     admins.append(new_admin)
                     print(f"admin {event.chat_id} added {new_admin} to admins")
                     await client.send_message(int(new_admin), message="شما به ادمین ارتقاع یافتید\n برای مشاهده دسترسی های خود از دستور /admin استفاده کنید")
-                    await client.send_message(int(new_admin), message= "برای بازدهی بهتر ربات،‌ توصیه میشه یه بار مجدد ربات رو /start بکنید!!")
-                    await client.send_message(event.chat_id, message= "ادمین جدید اضافه شد", buttons=None)
+                    await client.send_message(int(new_admin), message= "برای بازدهی بهتر ربات،‌ توصیه میشه یه بار مجدد ربات رو /start بکنید!!", buttons= keyBoard_services_button)
+                    await client.send_message(event.chat_id, message= "ادمین جدید اضافه شد", buttons=keyBoard_services_button)
                     return
     else:
         return
@@ -373,19 +373,19 @@ async def remove_admin(event):
 
             # checking text
             if r_chat_id == "❌ لغو":
-                await client.send_message(event.chat_id, message="عملیات با موفقیت لغو شد", buttons=None)
+                await client.send_message(event.chat_id, message="عملیات با موفقیت لغو شد", buttons=keyBoard_services_button)
                 return
 
             elif int(r_chat_id) == DEVELOPER or int(r_chat_id) == MANAGER:
-                await client.send_message(event.chat_id, message="شما نمیتوانید مدیریت یا توسعه دهنده ربات را حذف کنید", buttons=None)
+                await client.send_message(event.chat_id, message="شما نمیتوانید مدیریت یا توسعه دهنده ربات را حذف کنید", buttons=keyBoard_services_button)
                 return
 
             elif r_chat_id not in admins:
-                await client.send_message(event.chat_id, message=f"چت آیدی ارسالی شما {r_chat_id} در لیست مدیران موجود نمیباشد", buttons=None)
+                await client.send_message(event.chat_id, message=f"چت آیدی ارسالی شما {r_chat_id} در لیست مدیران موجود نمیباشد", buttons=keyBoard_services_button)
                 return
 
             elif r_chat_id == str(event.chat_id):
-                await client.send_message(event.chat_id, message= " شما نمیتوانید دسترسی ادمین را از خود بگیرید", buttons=None)
+                await client.send_message(event.chat_id, message= " شما نمیتوانید دسترسی ادمین را از خود بگیرید", buttons=keyBoard_services_button)
                 return
 
             else: # removing admin
@@ -401,7 +401,7 @@ async def remove_admin(event):
                 text = f"""
                 ادمین مورد نظر حذف شد \n ادمین حذف شده : {r_chat_id} \n ادمین های موجود : {admins} \n مدریت : {MANAGER} \n توسعه دهنده : {DEVELOPER}
                 """
-                await client.send_message(event.chat_id, message= text, buttons= None)
+                await client.send_message(event.chat_id, message= text, buttons= keyBoard_services_button)
                 return
     else:
         return
@@ -411,6 +411,8 @@ async def remove_admin(event):
 @client.on(events.CallbackQuery(data="ask"))
 @client.on(events.NewMessage(pattern="❓ پرسش سؤال"))
 async def send_to_admin(event):
+    
+    global keyBoard_services_button
 
     print(f"user {event.chat_id} want ask a question")
     # set cancel button
@@ -429,7 +431,7 @@ async def send_to_admin(event):
         question = response.text
         # check cancle
         if question == "❌ لغو":
-            await client.send_message(event.chat_id, message="عملیات با موفقیت لغو شد", buttons=None)
+            await client.send_message(event.chat_id, message="عملیات با موفقیت لغو شد", buttons=keyBoard_services_button)
             return
     text = f"""
     🧾 سوال جدید از کاربر:
@@ -476,7 +478,7 @@ async def answer(event):
 
 
         if str(message_uid) in answerd_qestion:
-            await client.send_message(event.chat_id, message=f"به این سوال قبلا پاسخ داده شده❌", buttons=None)
+            await client.send_message(event.chat_id, message=f"به این سوال قبلا پاسخ داده شده❌", buttons=keyBoard_services_button)
             return
         else:
             # print log
@@ -498,11 +500,11 @@ async def answer(event):
 
             # check cancel
             if answer == "❌ لغو":
-                await client.send_message(event.chat_id, message="عملیات با موفقیت لغو شد", buttons=None)
+                await client.send_message(event.chat_id, message="عملیات با موفقیت لغو شد", buttons=keyBoard_services_button)
                 return
             else:
                 # send answer to user
-                await client.send_message(sender_id, message=send_text, buttons=None)
+                await client.send_message(sender_id, message=send_text, buttons=keyBoard_services_button)
 
                 # delete question from admin and set question key
                 await client.delete_messages(event.chat_id, message_ids=message_id)
@@ -513,7 +515,7 @@ async def answer(event):
 
                 # print log
                 print(f"admin {event.chat_id} answerd to {message_uid} - {sender_id} question")
-                await client.send_message(event.chat_id, message= "پاسخ با موفقیت ارسال شد ✅", buttons= None)
+                await client.send_message(event.chat_id, message= "پاسخ با موفقیت ارسال شد ✅", buttons= keyBoard_services_button)
     else:
         return
 
@@ -558,7 +560,7 @@ async def gold_price(event):
     
     else :
         # send error to user
-        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️")
+        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️", buttons= keyBoard_services_button)
         return
 
 # market prie 
@@ -571,7 +573,7 @@ async def gold_price(event):
     
     else :
         # send error to user
-        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️")
+        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️", buttons= keyBoard_services_button)
         return
 
 @client.on(events.CallbackQuery(data="real"))
@@ -583,7 +585,7 @@ async def gold_price(event):
     
     else :
         # send error to user
-        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️")
+        await client.send_message(entity= event.chat_id, message="⚠️خطای اتصال به وب سرویس،‌ لطفا دقایی دیگر مجددا تلاش کنید⚠️", buttons= keyBoard_services_button)
         return
 
 
@@ -592,7 +594,7 @@ async def gold_price(event):
 @client.on(events.NewMessage(pattern="🧰 سامانه‌های کاربردی"))
 async def usefull_sites(event):
     await client.send_file(entity= event.chat_id, file= "./data/usefull_sites.pdf")
-    await client.send_message(entity= event.chat_id, message= "نکته : اکثر لینک های داخل لیس قابلیت انتقال مستقیم به سامانه دارن،فقط کافیه روشون کلیک کنید!")
+    await client.send_message(entity= event.chat_id, message= "نکته : اکثر لینک های داخل لیس قابلیت انتقال مستقیم به سامانه دارن،فقط کافیه روشون کلیک کنید!", buttons= keyBoard_services_button)
     print(f"user {event.chat_id} get the usefull sites")
     return
 
@@ -662,7 +664,7 @@ async def services_in(event):
         • طراحی رزومه حرفه‌ای
         • مشاوره خرید سیستم
     """
-    await client.send_message(event.chat_id, message= text)
+    await client.send_message(event.chat_id, message= text, buttons= keyBoard_services_button)
     return
 
 
